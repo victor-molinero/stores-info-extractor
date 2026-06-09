@@ -1,5 +1,45 @@
 const MODE_KEY = "selectedExtractionMode";
 
+const DEFAULT_CATEGORY = "No category";
+const CATEGORY_OPTIONS = [
+  "No category",
+  "Clothing & Apparel | Accessories",
+  "Clothing & Apparel | Casual Wear",
+  "Education & Work Tools | Digital Books Subscription",
+  "Education & Work Tools | Electronics",
+  "Education & Work Tools | Learning Platform",
+  "Education & Work Tools | Software Subscription",
+  "Entertainment & Leisure | Sports Equipment",
+  "Entertainment & Leisure | Streaming",
+  "Food | Beverages",
+  "Food | Dining Out",
+  "Food | Groceries",
+  "Food | Snacks",
+  "Health & Personal Care | Haircare",
+  "Health & Personal Care | Medication",
+  "Health & Personal Care | Nutrition & Supplements",
+  "Health & Personal Care | Oral Care",
+  "Health & Personal Care | Skincare",
+  "Health & Personal Care | Supplements",
+  "Housing & Utilities | Cleaning Supplies",
+  "Housing & Utilities | Electricity",
+  "Housing & Utilities | Gas",
+  "Housing & Utilities | Home Security",
+  "Housing & Utilities | Household Supplies",
+  "Housing & Utilities | Kitchenware",
+  "Miscellaneous | Refund",
+  "Pet Care | Dog Food",
+  "Pet Care | Dog Food (Specialized)",
+  "Pet Care | Pet Supplies",
+  "Shopping | Online Purchase",
+  "Transportation | Rideshare",
+  "Transportation | Subscription",
+  "Utilities | Internet Service",
+  "Utilities | Mobile Service",
+];
+
+const CATEGORY_OPTION_SET = new Set(CATEGORY_OPTIONS);
+
 const MODES = {
   amazonOrders: {
     id: "amazonOrders",
@@ -18,9 +58,10 @@ const MODES = {
       { key: "date", label: "Date" },
       { key: "itemDescription", label: "Item Description" },
       { key: "price", label: "Price" },
+      { key: "category", label: "Category" },
     ],
-    csvColumns: ["OrderNumber", "Status", "Date", "Item Description", "Price"],
-    csvRow: (row) => [row.orderId, row.orderStatus, row.date, row.itemDescription, row.price],
+    csvColumns: ["OrderNumber", "Status", "Date", "Item Description", "Price", "Category"],
+    csvRow: (row) => [row.orderId, row.orderStatus, row.date, row.itemDescription, row.price, row.category],
     rowKey: (row) => [row.orderId, row.orderStatus, row.date, row.itemDescription, row.price].join("|"),
     normalize: (row) => ({
       orderId: row?.orderId || "",
@@ -28,6 +69,7 @@ const MODES = {
       date: row?.date || "",
       itemDescription: row?.itemDescription || "",
       price: row?.price || "",
+      category: normalizeCategoryValue(row?.category),
     }),
   },
   amazonTransactions: {
@@ -71,14 +113,16 @@ const MODES = {
     columns: [
       { key: "product", label: "Product" },
       { key: "price", label: "Price" },
+      { key: "category", label: "Category" },
     ],
-    csvColumns: ["Product", "Price"],
-    csvRow: (row) => [row.product, row.price],
+    csvColumns: ["Product", "Price", "Category"],
+    csvRow: (row) => [row.product, row.price, row.category],
     rowKey: (row) => [row.itemId, row.product, row.price].join("|"),
     normalize: (row) => ({
       itemId: row?.itemId || "",
       product: row?.product || "",
       price: row?.price || "",
+      category: normalizeCategoryValue(row?.category),
     }),
   },
   walmartCart: {
@@ -101,9 +145,10 @@ const MODES = {
       { key: "quantity", label: "Quantity" },
       { key: "unitPrice", label: "Unit Price" },
       { key: "total", label: "Total" },
+      { key: "category", label: "Category" },
     ],
-    csvColumns: ["ProductName", "Quantity", "Unit Price", "Total"],
-    csvRow: (row) => [row.productName, row.quantity, row.unitPrice, row.total],
+    csvColumns: ["ProductName", "Quantity", "Unit Price", "Total", "Category"],
+    csvRow: (row) => [row.productName, row.quantity, row.unitPrice, row.total, row.category],
     rowKey: (row) => [row.itemId || "", row.productName, row.quantity, row.unitPrice, row.total].join("|"),
     normalize: (row) => ({
       itemId: row?.itemId || "",
@@ -111,6 +156,7 @@ const MODES = {
       quantity: Number.isInteger(row?.quantity) && row.quantity > 0 ? row.quantity : 1,
       unitPrice: row?.unitPrice || "",
       total: row?.total || "",
+      category: normalizeCategoryValue(row?.category),
     }),
   },
 };
@@ -154,9 +200,14 @@ function getSelectedMode() {
   return MODES[modeSelectEl.value] || MODES.amazonOrders;
 }
 
+function normalizeCategoryValue(category) {
+  return CATEGORY_OPTION_SET.has(category) ? category : DEFAULT_CATEGORY;
+}
+
 async function getStoredRows(mode) {
   const result = await chrome.storage.session.get(mode.storageKey);
-  return Array.isArray(result[mode.storageKey]) ? result[mode.storageKey] : [];
+  const rows = Array.isArray(result[mode.storageKey]) ? result[mode.storageKey] : [];
+  return rows.map((row) => mode.normalize(row));
 }
 
 async function saveRows(mode, rows) {
@@ -170,6 +221,25 @@ async function clearRows(mode) {
 function createCell(text) {
   const cell = document.createElement("td");
   cell.textContent = text || "";
+  return cell;
+}
+
+function createCategoryCell(category, rowIndex) {
+  const cell = document.createElement("td");
+  const select = document.createElement("select");
+  select.className = "category-select";
+  select.dataset.rowIndex = String(rowIndex);
+  select.setAttribute("aria-label", "Select category");
+
+  CATEGORY_OPTIONS.forEach((optionValue) => {
+    const option = document.createElement("option");
+    option.value = optionValue;
+    option.textContent = optionValue;
+    option.selected = optionValue === normalizeCategoryValue(category);
+    select.appendChild(option);
+  });
+
+  cell.appendChild(select);
   return cell;
 }
 
@@ -208,7 +278,11 @@ function renderRows(rows, mode) {
     const tr = document.createElement("tr");
 
     mode.columns.forEach((column) => {
-      tr.appendChild(createCell(String(row[column.key] ?? "")));
+      if (column.key === "category") {
+        tr.appendChild(createCategoryCell(row[column.key], index));
+      } else {
+        tr.appendChild(createCell(String(row[column.key] ?? "")));
+      }
     });
 
     const actionsCell = document.createElement("td");
@@ -367,6 +441,28 @@ async function removeRow(rowIndex) {
   renderRows(rows, mode);
 }
 
+async function updateCategory(rowIndex, category) {
+  const mode = getSelectedMode();
+  const supportsCategory = mode.columns.some((column) => column.key === "category");
+  if (!supportsCategory) {
+    return;
+  }
+
+  const rows = await getStoredRows(mode);
+  if (rowIndex < 0 || rowIndex >= rows.length) {
+    return;
+  }
+
+  rows[rowIndex] = {
+    ...rows[rowIndex],
+    category: normalizeCategoryValue(category),
+  };
+
+  await saveRows(mode, rows);
+  setStatus("Category updated.");
+  renderRows(rows, mode);
+}
+
 function populateModeSelect() {
   Object.values(MODES).forEach((mode) => {
     const option = document.createElement("option");
@@ -398,6 +494,20 @@ rowsBodyEl.addEventListener("click", async (event) => {
   }
 
   await removeRow(rowIndex);
+});
+
+rowsBodyEl.addEventListener("change", async (event) => {
+  const select = event.target.closest("select.category-select");
+  if (!select) {
+    return;
+  }
+
+  const rowIndex = Number(select.dataset.rowIndex);
+  if (!Number.isInteger(rowIndex)) {
+    return;
+  }
+
+  await updateCategory(rowIndex, select.value);
 });
 
 async function init() {

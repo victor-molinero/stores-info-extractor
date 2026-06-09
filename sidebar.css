@@ -186,6 +186,24 @@ tbody tr:last-child td {
   cursor: pointer;
 }
 
+.category-select {
+  width: 100%;
+  min-width: 220px;
+  background: #11112f;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 6px 8px;
+}
+
+.category-select:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .empty {
   color: var(--muted);
   text-align: center;
