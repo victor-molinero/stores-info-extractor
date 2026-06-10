@@ -5,9 +5,17 @@
   --panel-soft: #2f2f4f;
   --ink: #f5f6f7;
   --muted: #b8b8d2;
-  --accent: #f1be32;
   --accent-alt: #f5f6f7;
   --border: rgba(245, 246, 247, 0.2);
+  --btn-gr-start: #6A0DAD;       /* Royal Purple – strong, regal base */
+  --btn-border-color: #4B0082;   /* Indigo – darker edge for definition */
+  --accent: #8A2BE2;             /* Medium Purple – softer highlight */
+
+  /* 
+  --btn-gr-start: #f9cf5a; 
+  --btn-border-color: #c79d29;
+  --accent: #f1be32;
+  */
 }
 
 * {
@@ -115,9 +123,9 @@ button {
 }
 
 #extract {
-  background: linear-gradient(180deg, #f9cf5a 0%, var(--accent) 100%);
-  border-color: #c79d29;
-  color: #0a0a23;
+  background: linear-gradient(180deg, var(--btn-gr-start) 0%, var(--accent) 100%);
+  border-color: var(--btn-border-color);
+  color: var(--accent-alt);
 }
 
 #download,
